@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { LogStep } from '../types';
 import { StatusIcon, StepIcon } from './StepIcon';
 import { DiffViewer } from './DiffViewer';
-import { ChevronDown, ChevronRight, Clock, Code, AlertOctagon, Brain, FileCode, Timer } from 'lucide-react';
-import { formatDuration } from '../utils';
+import { ChevronDown, ChevronRight, Clock, Code, AlertOctagon, Brain, FileCode, Timer, Key, Info, Globe, ExternalLink } from 'lucide-react';
+import Markdown from 'react-markdown';
+import { formatDuration, formatTimeDiff } from '../utils';
 
 interface StepDetailProps {
   step: LogStep;
@@ -31,9 +32,11 @@ const Collapsible: React.FC<{ title: string; children: React.ReactNode; defaultO
 };
 
 export const StepDetail: React.FC<StepDetailProps> = ({ step, index, durationFromPrevious }) => {
-  const { type, status, metadata, planner_response, file_change, task_boundary, user_input, error } = step;
+  const { type, status, metadata, planner_response, file_change, task_boundary, user_input, define_new_env_variable, system_message, read_url_content, error, error_message } = step;
 
   const displayType = type ? type.replace('CORTEX_STEP_TYPE_', '').replace(/_/g, ' ') : 'Unknown Step';
+
+  const activeError = error || error_message?.error;
 
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
@@ -52,7 +55,22 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, index, durationFro
           {metadata?.created_at && (
             <div className="flex items-center gap-1">
               <Clock size={14} />
+              <span className="text-gray-500 mr-1">Created:</span>
               {new Date(metadata.created_at).toLocaleString()}
+            </div>
+          )}
+          {metadata?.viewable_at && (
+            <div className="flex items-center gap-1">
+              <Clock size={14} className="text-blue-400" />
+              <span className="text-gray-500 mr-1">Viewable:</span>
+              {new Date(metadata.viewable_at).toLocaleString()}
+            </div>
+          )}
+          {metadata?.timestamp && (
+            <div className="flex items-center gap-1">
+              <Clock size={14} className="text-green-400" />
+              <span className="text-gray-500 mr-1">Timestamp:</span>
+              {new Date(metadata.timestamp).toLocaleString()}
             </div>
           )}
           {metadata?.completed_at && (
@@ -71,20 +89,106 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, index, durationFro
         </div>
       </div>
 
+      {/* Status Transitions Timeline */}
+      {metadata?.internal_metadata?.status_transitions && Array.isArray(metadata.internal_metadata.status_transitions) && (
+        <Collapsible title="Status Transitions" icon={<Timer size={16} className="text-orange-400" />} defaultOpen={true}>
+          <div className="relative pl-4 border-l-2 border-gray-800 space-y-4 py-2">
+            {metadata.internal_metadata.status_transitions.map((t, i) => {
+              const prev = i > 0 ? metadata.internal_metadata!.status_transitions![i-1] : null;
+              let diffStr = '';
+              if (prev && prev.timestamp && t.timestamp) {
+                const diff = new Date(t.timestamp as string).getTime() - new Date(prev.timestamp as string).getTime();
+                if (diff >= 0) {
+                  diffStr = formatTimeDiff(diff);
+                }
+              }
+              
+              return (
+                <div key={i} className="relative">
+                  <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-gray-800 border-2 border-gray-950" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status={t.updated_status} className="w-3 h-3" />
+                      <span className="text-sm font-mono text-gray-300">{t.updated_status}</span>
+                      {diffStr && (
+                        <span className="text-[10px] font-mono text-orange-400/70 bg-orange-950/20 px-1 rounded border border-orange-900/30">
+                          {diffStr}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs font-mono text-gray-500">
+                      {t.timestamp ? new Date(t.timestamp as string).toLocaleString() : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Collapsible>
+      )}
+
       {/* Error Display */}
-      {error && (
+      {activeError && (
         <div className="bg-red-950/30 border border-red-900/50 rounded-lg p-4 mb-6 text-red-200">
           <div className="flex items-center gap-2 font-bold mb-2 text-red-400">
             <AlertOctagon size={20} />
             Execution Error
           </div>
-          <p className="font-mono text-sm whitespace-pre-wrap">{error.short_error}</p>
-          {error.full_error && error.full_error !== error.short_error && (
+          {activeError.user_error_message && (
+            <div className="mb-3 p-2 bg-red-900/20 rounded border border-red-800/30">
+              <div className="text-[10px] uppercase tracking-wider text-red-400 font-bold mb-1">User Error Message</div>
+              <p className="text-sm font-medium">{activeError.user_error_message}</p>
+            </div>
+          )}
+          <div className="mb-2">
+            <div className="text-[10px] uppercase tracking-wider text-red-400/60 font-bold mb-1">Short Error</div>
+            <p className="font-mono text-sm whitespace-pre-wrap">{activeError.short_error}</p>
+          </div>
+          {activeError.full_error && activeError.full_error !== activeError.short_error && (
              <details className="mt-2">
                <summary className="cursor-pointer text-xs opacity-70 hover:opacity-100">Full Stack Trace</summary>
-               <pre className="mt-2 text-xs opacity-60 overflow-x-auto">{error.full_error}</pre>
+               <pre className="mt-2 text-xs opacity-60 overflow-x-auto whitespace-pre-wrap font-mono">{activeError.full_error}</pre>
              </details>
           )}
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error_message && (
+        <div className={`border rounded-lg p-6 mb-6 ${error_message.is_benign ? 'bg-amber-950/10 border-amber-900/30' : 'bg-red-950/20 border-red-900/50'}`}>
+          <div className={`flex items-center gap-2 font-bold mb-4 ${error_message.is_benign ? 'text-amber-400' : 'text-red-400'}`}>
+            <AlertOctagon size={20} />
+            System Error Message {error_message.is_benign && <span className="text-[10px] bg-amber-400/20 px-2 py-0.5 rounded ml-2 uppercase tracking-widest">Benign</span>}
+          </div>
+          
+          {error_message.error.user_error_message && (
+            <div className="mb-4 p-3 bg-black/30 rounded border border-white/5">
+              <p className="text-sm font-medium text-gray-200">{error_message.error.user_error_message}</p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Short Error</div>
+              <p className="font-mono text-sm text-gray-300 whitespace-pre-wrap">{error_message.error.short_error}</p>
+            </div>
+
+            {error_message.model_error_message && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Model Error Message</div>
+                <p className="text-sm text-gray-400 italic">"{error_message.model_error_message}"</p>
+              </div>
+            )}
+
+            {error_message.error.full_error && error_message.error.full_error !== error_message.error.short_error && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-300 transition-colors">Full Stack Trace</summary>
+                <pre className="mt-2 text-[10px] text-gray-600 overflow-x-auto whitespace-pre-wrap font-mono bg-black/20 p-3 rounded leading-relaxed">
+                  {error_message.error.full_error}
+                </pre>
+              </details>
+            )}
+          </div>
         </div>
       )}
 
@@ -110,6 +214,12 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, index, durationFro
             <div className="prose prose-invert max-w-none text-gray-200 whitespace-pre-wrap">
               {planner_response.response}
             </div>
+            {planner_response.stop_reason && (
+              <div className="mt-4 pt-4 border-t border-gray-800 flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Stop Reason:</span>
+                <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">{planner_response.stop_reason}</span>
+              </div>
+            )}
           </Collapsible>
 
           {planner_response.tool_calls && planner_response.tool_calls.length > 0 && (
@@ -151,6 +261,80 @@ export const StepDetail: React.FC<StepDetailProps> = ({ step, index, durationFro
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Define New Env Variable */}
+      {define_new_env_variable && (
+        <div className="bg-green-950/20 border border-green-900/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 text-green-400 font-bold mb-4">
+            <Key size={20} />
+            Define New Environment Variable
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-500 text-sm">Variable Name:</span>
+            <code className="bg-gray-950 px-2 py-1 rounded border border-gray-800 text-green-300 font-mono text-sm">
+              {define_new_env_variable.variable_name}
+            </code>
+          </div>
+        </div>
+      )}
+
+      {/* System Message */}
+      {system_message && (
+        <div className="bg-blue-950/20 border border-blue-900/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 text-blue-400 font-bold mb-4">
+            <Info size={20} />
+            System Message
+          </div>
+          <div className="text-gray-200 text-sm whitespace-pre-wrap italic">
+            "{system_message.message}"
+          </div>
+        </div>
+      )}
+
+      {/* Read URL Content */}
+      {read_url_content && (
+        <div className="space-y-4 mb-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-indigo-400 font-bold">
+                <Globe size={20} />
+                Web Content
+              </div>
+              <a 
+                href={read_url_content.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                <ExternalLink size={12} />
+                Visit URL
+              </a>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-white">
+                {read_url_content.web_document?.title || 'Untitled Document'}
+              </div>
+              <div className="text-xs text-gray-500 font-mono">
+                {read_url_content.url}
+              </div>
+            </div>
+          </div>
+
+          {read_url_content.web_document?.chunks?.map((chunk, i) => (
+            <Collapsible 
+              key={i} 
+              title={`Content Chunk ${chunk.position !== undefined ? chunk.position : i}`}
+              icon={<Code size={16} className="text-gray-400" />}
+              defaultOpen={i === 0}
+            >
+              <div className="markdown-body prose prose-invert max-w-none text-sm leading-relaxed">
+                <Markdown>{chunk.markdown_chunk?.text || ''}</Markdown>
+              </div>
+            </Collapsible>
+          ))}
         </div>
       )}
 

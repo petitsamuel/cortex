@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.markdown-body h1 { @apply text-2xl font-bold mb-4 mt-6 border-b border-gray-800 pb-2; }
+.markdown-body h2 { @apply text-xl font-bold mb-3 mt-5 border-b border-gray-800 pb-1; }
+.markdown-body h3 { @apply text-lg font-bold mb-2 mt-4; }
+.markdown-body p { @apply mb-4 leading-relaxed; }
+.markdown-body ul { @apply list-disc pl-6 mb-4; }
+.markdown-body ol { @apply list-decimal pl-6 mb-4; }
+.markdown-body li { @apply mb-1; }
+.markdown-body a { @apply text-indigo-400 hover:underline; }
+.markdown-body code { @apply bg-gray-800 px-1 rounded text-sm font-mono; }
+.markdown-body pre { @apply bg-gray-800 p-4 rounded-lg mb-4 overflow-x-auto; }
+.markdown-body blockquote { @apply border-l-4 border-gray-700 pl-4 italic text-gray-400 mb-4; }
+.markdown-body table { @apply w-full border-collapse mb-4; }
+.markdown-body th, .markdown-body td { @apply border border-gray-800 p-2 text-left; }
+.markdown-body th { @apply bg-gray-800; }

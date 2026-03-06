@@ -1,5 +1,5 @@
 {
-  "name": "Cortex Log Viewer",
+  "name": "Copy of Cortex Log Viewer",
   "description": "A dynamic viewer for Cortex execution logs, featuring step-by-step navigation, diff viewing, and detailed inspection of planner responses and tool calls.",
   "requestFramePermissions": []
 }

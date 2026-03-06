@@ -10,7 +10,11 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   FolderSearch,
-  Package
+  Package,
+  Key,
+  Info,
+  Globe,
+  AlertOctagon
 } from 'lucide-react';
 import { StepType } from '../types';
 
@@ -25,6 +29,10 @@ export const StepIcon: React.FC<{ type: StepType; className?: string }> = ({ typ
     case 'CORTEX_STEP_TYPE_INSTALL_APPLET_DEPENDENCIES': return <Package {...props} />;
     case 'CORTEX_STEP_TYPE_CHECKPOINT': return <Save {...props} />;
     case 'CORTEX_STEP_TYPE_LIST_DIRECTORY': return <FolderSearch {...props} />;
+    case 'CORTEX_STEP_TYPE_DEFINE_NEW_ENV_VARIABLE': return <Key {...props} />;
+    case 'CORTEX_STEP_TYPE_SYSTEM_MESSAGE': return <Info {...props} />;
+    case 'CORTEX_STEP_TYPE_READ_URL_CONTENT': return <Globe {...props} />;
+    case 'CORTEX_STEP_TYPE_ERROR_MESSAGE': return <AlertOctagon {...props} />;
     default: return <Activity {...props} />;
   }
 };
